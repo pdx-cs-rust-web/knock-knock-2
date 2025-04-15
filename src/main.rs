@@ -16,11 +16,22 @@ async fn get_joke() -> response::Html<String> {
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
+    let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
     let app = axum::Router::new()
         .route("/", routing::get(get_joke))
         .route_service(
             "/knock.css",
-            services::ServeFile::new_with_mime("assets/static/knock.css", &mime::TEXT_CSS),
+            services::ServeFile::new_with_mime(
+                "assets/static/knock.css",
+                &mime::TEXT_CSS_UTF_8,
+            ),
+        )
+        .route_service(
+            "/favicon.ico",
+            services::ServeFile::new_with_mime(
+                "assets/static/favicon.ico",
+                &mime_favicon,
+            ),
         );
     let listener = net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, app).await?;
