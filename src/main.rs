@@ -11,7 +11,7 @@ use tokio::net;
 use tower_http::services;
 
 async fn get_joke() -> response::Html<String> {
-    let joke = IndexTemplate::joke(&THE_JOKE);
+    let joke = IndexTemplate::joke(THE_JOKE);
     response::Html(joke.to_string())
 }
 

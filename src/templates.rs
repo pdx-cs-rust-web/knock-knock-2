@@ -4,13 +4,13 @@ use askama::Template;
 
 #[derive(Template)]
 #[template(path = "index.html")]
-pub struct IndexTemplate<'a> {
-    joke: &'a Joke,
+pub struct IndexTemplate {
+    joke: Joke,
     stylesheet: &'static str,
 }
 
-impl<'a> IndexTemplate<'a> {
-    pub fn joke(joke: &'a Joke) -> Self {
+impl IndexTemplate {
+    pub fn joke(joke: Joke) -> Self {
         Self {
             joke,
             stylesheet: "/knock.css",
