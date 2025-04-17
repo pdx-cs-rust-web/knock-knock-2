@@ -7,6 +7,7 @@ edition = "2024"
 askama = "0.13.1"
 axum = "0.8.3"
 mime = "0.3.17"
+serde = { version = "1.0.219", features = ["derive"] }
 tokio = { version = "1.44.2", features = ["full"] }
 
 [dependencies.tower-http]
