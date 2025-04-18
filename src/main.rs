@@ -1,22 +1,38 @@
+mod error;
 mod joke;
 mod templates;
 
+use error::*;
 use joke::*;
 use templates::*;
 
 extern crate mime;
 
-use axum::{self, response, routing};
-use tokio::net;
+use axum::{self, extract::State, response, routing};
+extern crate fastrand;
+use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-async fn get_joke() -> response::Html<String> {
-    let joke = IndexTemplate::joke(&THE_JOKE);
+use std::sync::Arc;
+
+struct AppState {
+    jokes: Vec<Joke>,
+}
+
+async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::Html<String> {
+    let app_state = app_state.read().await;
+    let njokes = app_state.jokes.len();
+    let i = fastrand::usize(0..njokes);
+    let joke = &app_state.jokes[i];
+    let joke = IndexTemplate::joke(joke);
     response::Html(joke.to_string())
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
+    let jokes = read_jokes("assets/static/jokes.json")?;
+    let state = Arc::new(RwLock::new(AppState{jokes}));
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -45,7 +61,8 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
                 &mime_favicon,
             ),
         )
-        .layer(trace_layer);
+        .layer(trace_layer)
+        .with_state(state);
     let listener = net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, app).await?;
     Ok(())
