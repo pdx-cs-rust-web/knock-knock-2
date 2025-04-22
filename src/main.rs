@@ -10,6 +10,7 @@ extern crate mime;
 
 use axum::{self, extract::State, response, routing};
 extern crate fastrand;
+use sqlx::SqlitePool;
 use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -30,6 +31,8 @@ async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::H
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
+    let db = SqlitePool::connect("sqlite://knock-knock.db").await?;
+    sqlx::migrate!().run(&db).await?;
     let jokes = read_jokes("assets/static/jokes.json")?;
     let state = Arc::new(RwLock::new(AppState{jokes}));
 

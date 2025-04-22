@@ -27,3 +27,7 @@ features = ["fs", "trace"]
 [dependencies.tracing-subscriber]
 version = "0.3.19"
 features = ["env-filter"]
+
+[dependencies.sqlx]
+version = "0.8.5"
+features = ["runtime-tokio", "sqlite", "derive", "macros", "migrate", "chrono", "json"]
