@@ -9,6 +9,7 @@ use templates::*;
 extern crate mime;
 
 use axum::{self, extract::State, response, routing};
+use clap::Parser;
 extern crate fastrand;
 use sqlx::SqlitePool;
 use tokio::{net, sync::RwLock};
@@ -17,24 +18,47 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use std::sync::Arc;
 
+#[derive(Parser)]
+struct Args {
+    #[arg(short, long, name = "init-from")]
+    init_from: Option<std::path::PathBuf>,
+}
+
 struct AppState {
-    jokes: Vec<Joke>,
+    db: SqlitePool,
 }
 
 async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::Html<String> {
     let app_state = app_state.read().await;
-    let njokes = app_state.jokes.len();
-    let i = fastrand::usize(0..njokes);
-    let joke = &app_state.jokes[i];
-    let joke = IndexTemplate::joke(joke);
+    let db = &app_state.db;
+    let joke = sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
+        .fetch_one(db)
+        .await
+        .unwrap();
+    let joke = IndexTemplate::joke(&joke);
     response::Html(joke.to_string())
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
-    let db = SqlitePool::connect("sqlite://knock-knock.db").await?;
+    let args = Args::parse();
+
+    let db = SqlitePool::connect("sqlite://db/knock-knock.db").await?;
     sqlx::migrate!().run(&db).await?;
-    let jokes = read_jokes("assets/static/jokes.json")?;
-    let state = Arc::new(RwLock::new(AppState{jokes}));
+    if let Some(path) = args.init_from {
+        let jokes = read_jokes(path)?;
+        let mut tx = db.begin().await?;
+        for j in &jokes {
+            sqlx::query!(
+                "INSERT INTO jokes VALUES ($1, $2);",
+                j.whos_there,
+                j.answer_who,
+            )
+            .execute(&mut *tx)
+            .await?;
+        }
+        tx.commit().await?;
+    }
+    let state = Arc::new(RwLock::new(AppState { db }));
 
     tracing_subscriber::registry()
         .with(
@@ -47,25 +71,21 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let trace_layer = trace::TraceLayer::new_for_http()
         .make_span_with(trace::DefaultMakeSpan::new().level(tracing::Level::INFO))
         .on_response(trace::DefaultOnResponse::new().level(tracing::Level::INFO));
+
     let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
     let app = axum::Router::new()
         .route("/", routing::get(get_joke))
         .route_service(
             "/knock.css",
-            services::ServeFile::new_with_mime(
-                "assets/static/knock.css",
-                &mime::TEXT_CSS_UTF_8,
-            ),
+            services::ServeFile::new_with_mime("assets/static/knock.css", &mime::TEXT_CSS_UTF_8),
         )
         .route_service(
             "/favicon.ico",
-            services::ServeFile::new_with_mime(
-                "assets/static/favicon.ico",
-                &mime_favicon,
-            ),
+            services::ServeFile::new_with_mime("assets/static/favicon.ico", &mime_favicon),
         )
         .layer(trace_layer)
         .with_state(state);
+
     let listener = net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, app).await?;
     Ok(())
