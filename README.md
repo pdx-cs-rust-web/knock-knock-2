@@ -12,3 +12,9 @@ serve knock-knock jokes.
 
 This last line is optional, but will initialize the database
 with a bunch of jokes.
+
+## License
+
+This work is made available under the "Apache 2.0 or MIT
+License". See the file `LICENSE.txt` in this distribution for
+license terms.
