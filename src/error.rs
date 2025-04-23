@@ -7,4 +7,6 @@ pub enum KnockKnockError {
     JokesNotFound(#[from] std::io::Error),
     #[error("could not read joke file: {0}")]
     JokeMisformat(#[from] serde_json::Error),
+    #[error("invalid database uri: {0}")]
+    InvalidDbUri(String),
 }

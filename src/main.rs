@@ -11,7 +11,7 @@ extern crate mime;
 use axum::{self, extract::State, response, routing};
 use clap::Parser;
 extern crate fastrand;
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -22,6 +22,8 @@ use std::sync::Arc;
 struct Args {
     #[arg(short, long, name = "init-from")]
     init_from: Option<std::path::PathBuf>,
+    #[arg(short, long, name = "db-uri")]
+    db_uri: Option<String>,
 }
 
 struct AppState {
@@ -39,10 +41,42 @@ async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::H
     response::Html(joke.to_string())
 }
 
+fn get_db_uri(db_uri: Option<&str>) -> String {
+    if let Some(db_uri) = db_uri {
+        db_uri.to_string()
+    } else if let Ok(db_uri) = std::env::var("KK2_DB_URI") {
+        db_uri
+    } else {
+        "sqlite://db/knock-knock.db".to_string()
+    }
+}
+
+fn extract_db_dir(db_uri: &str) -> Result<&str, KnockKnockError> {
+    if db_uri.starts_with("sqlite://") && db_uri.ends_with(".db") {
+        let start = db_uri.find(':').unwrap() + 3;
+        let mut path = &db_uri[start..];
+        if let Some(end) = path.rfind('/') {
+            path = &path[..end];
+        } else {
+            path = "";
+        }
+        Ok(path)
+    } else {
+        Err(KnockKnockError::InvalidDbUri(db_uri.to_string()))
+    }
+}
+
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
-    let db = SqlitePool::connect("sqlite://db/knock-knock.db").await?;
+    let db_uri = get_db_uri(args.db_uri.as_deref());
+    if !sqlite::Sqlite::database_exists(&db_uri).await? {
+        let db_dir = extract_db_dir(&db_uri)?;
+        std::fs::create_dir_all(db_dir)?;
+        sqlite::Sqlite::create_database(&db_uri).await?
+    }
+
+    let db = SqlitePool::connect(&db_uri).await?;
     sqlx::migrate!().run(&db).await?;
     if let Some(path) = args.init_from {
         let jokes = read_jokes(path)?;
