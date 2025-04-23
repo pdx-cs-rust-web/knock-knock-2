@@ -28,16 +28,19 @@ struct Args {
 
 struct AppState {
     db: SqlitePool,
+    current_joke: Joke,
 }
 
 async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::Html<String> {
-    let app_state = app_state.read().await;
+    let mut app_state = app_state.write().await;
     let db = &app_state.db;
-    let joke = sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
+    let joke_result = sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
         .fetch_one(db)
-        .await
-        .unwrap();
-    let joke = IndexTemplate::joke(&joke);
+        .await;
+    if let Ok(joke) = joke_result {
+        app_state.current_joke = joke;
+    }
+    let joke = IndexTemplate::joke(&app_state.current_joke);
     response::Html(joke.to_string())
 }
 
@@ -92,7 +95,12 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         }
         tx.commit().await?;
     }
-    let state = Arc::new(RwLock::new(AppState { db }));
+    let current_joke = Joke {
+        whos_there: "Mojo".to_string(),
+        answer_who: "Mo' jokes, please.".to_string(),
+    };
+    let app_state = AppState { db, current_joke };
+    let state = Arc::new(RwLock::new(app_state));
 
     tracing_subscriber::registry()
         .with(
