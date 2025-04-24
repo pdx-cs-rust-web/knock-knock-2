@@ -6,6 +6,7 @@ use error::*;
 use joke::*;
 use templates::*;
 
+extern crate log;
 extern crate mime;
 
 use axum::{self, extract::State, response, routing};
@@ -37,8 +38,9 @@ async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::H
     let joke_result = sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
         .fetch_one(db)
         .await;
-    if let Ok(joke) = joke_result {
-        app_state.current_joke = joke;
+    match joke_result {
+        Ok(joke) => app_state.current_joke = joke,
+        Err(e) => log::warn!("joke fetch failed: {}", e),
     }
     let joke = IndexTemplate::joke(&app_state.current_joke);
     response::Html(joke.to_string())

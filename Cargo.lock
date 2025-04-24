@@ -1008,6 +1008,7 @@ dependencies = [
  "axum",
  "clap",
  "fastrand",
+ "log",
  "mime",
  "serde",
  "serde_json",
