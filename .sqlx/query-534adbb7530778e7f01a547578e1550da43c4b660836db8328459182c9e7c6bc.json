@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO tags (joke_id, tag) VALUES ($1, $2);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "534adbb7530778e7f01a547578e1550da43c4b660836db8328459182c9e7c6bc"
+}
