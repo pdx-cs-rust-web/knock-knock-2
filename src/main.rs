@@ -96,6 +96,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
             .await?;
         }
         tx.commit().await?;
+        return Ok(());
     }
     let current_joke = Joke {
         whos_there: "Mojo".to_string(),
