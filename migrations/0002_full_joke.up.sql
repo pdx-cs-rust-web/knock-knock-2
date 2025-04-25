@@ -1,0 +1,20 @@
+CREATE TABLE IF NOT EXISTS jokes (
+  whos_there VARCHAR(200) NOT NULL,
+  answer_who VARCHAR(200) NOT NULL
+);
+
+ALTER TABLE jokes RENAME TO jokes_v1;
+
+CREATE TABLE IF NOT EXISTS jokes (
+  id VARCHAR(200) PRIMARY KEY,
+  whos_there VARCHAR(200) NOT NULL,
+  answer_who VARCHAR(200) NOT NULL,
+  joke_source VARCHAR(200) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+  joke_id VARCHAR(200) PRIMARY KEY,
+  tag VARCHAR(200) NOT NULL,
+  FOREIGN KEY (joke_id) REFERENCES jokes(id)
+);
+
