@@ -9,9 +9,10 @@ use templates::*;
 extern crate log;
 extern crate mime;
 
-use axum::{self, extract::State, response, routing};
+use axum::{self, extract::{Query, State}, response, routing};
 use clap::Parser;
 extern crate fastrand;
+use serde::Deserialize;
 use sqlx::{SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
@@ -32,12 +33,34 @@ struct AppState {
     current_joke: Joke,
 }
 
-async fn get_joke(State(app_state): State<Arc<RwLock<AppState>>>) -> response::Html<String> {
+#[derive(Deserialize)]
+struct GetJokeParams {
+    id: Option<String>,
+}
+
+async fn choose_joke(db: &SqlitePool, params: &GetJokeParams) -> Result<Joke, sqlx::Error>
+{
+    match params {
+        GetJokeParams { id: Some(id), .. } => {
+            sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", id)
+                .fetch_one(db)
+                .await
+        }
+        _ => {
+            sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
+                .fetch_one(db)
+                .await
+        }
+    }
+}
+
+async fn get_joke(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+    Query(params): Query<GetJokeParams>,
+)-> response::Html<String> {
     let mut app_state = app_state.write().await;
     let db = &app_state.db;
-    let joke_result = sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
-        .fetch_one(db)
-        .await;
+    let joke_result = choose_joke(&db, &params).await;
     match joke_result {
         Ok(joke) => app_state.current_joke = joke,
         Err(e) => log::warn!("joke fetch failed: {}", e),

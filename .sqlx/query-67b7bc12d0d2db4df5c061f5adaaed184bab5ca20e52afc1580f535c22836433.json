@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM jokes WHERE id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "whos_there",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "answer_who",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "joke_source",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "67b7bc12d0d2db4df5c061f5adaaed184bab5ca20e52afc1580f535c22836433"
+}

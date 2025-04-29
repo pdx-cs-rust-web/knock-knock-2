@@ -8,7 +8,7 @@ serve knock-knock jokes.
 
 By default the joke database URI is
 `sqlite://db/knock-knock.db`. You can override this with the
-`KK2_JOKE_URI` environment variable or with the `--db-uri`
+`DATABASE_URL` environment variable or with the `--db-uri`
 command-line argument.
 
 To build and run this code for the first time, you will
