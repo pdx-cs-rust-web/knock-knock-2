@@ -9,12 +9,13 @@ use templates::*;
 extern crate log;
 extern crate mime;
 
-use axum::{self, extract::{Query, State}, response, routing};
+use axum::{self, extract::{Query, State}, http, response, routing};
 use clap::Parser;
 extern crate fastrand;
 use serde::Deserialize;
 use sqlx::{SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
+use tokio_stream::StreamExt;
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -57,16 +58,33 @@ async fn choose_joke(db: &SqlitePool, params: &GetJokeParams) -> Result<Joke, sq
 async fn get_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Query(params): Query<GetJokeParams>,
-)-> response::Html<String> {
+)-> Result<response::Html<String>, http::StatusCode> {
     let mut app_state = app_state.write().await;
-    let db = &app_state.db;
+    let db = app_state.db.clone();
     let joke_result = choose_joke(&db, &params).await;
     match joke_result {
-        Ok(joke) => app_state.current_joke = joke,
-        Err(e) => log::warn!("joke fetch failed: {}", e),
+        Ok(joke) => {
+            let mut tags = sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke.id)
+                .fetch(&db);
+            let mut tag_list: Vec<String> = Vec::new();
+            while let Some(tag) = tags.next().await {
+                let tag = tag.unwrap_or_else(|e| {
+                    log::error!("tag fetch failed: {}", e);
+                    panic!("tag fetch failed")
+                });
+                tag_list.push(tag);
+            }
+            let tag_string = tag_list.join(", ");
+            
+            app_state.current_joke = joke.clone();
+            let joke = IndexTemplate::new(joke.clone(), tag_string);
+            Ok(response::Html(joke.to_string()))
+        }
+        Err(e) => {
+            log::warn!("joke fetch failed: {}", e);
+            Err(http::StatusCode::NOT_FOUND)
+        }
     }
-    let joke = IndexTemplate::joke(&app_state.current_joke);
-    response::Html(joke.to_string())
 }
 
 fn get_db_uri(db_uri: Option<&str>) -> String {

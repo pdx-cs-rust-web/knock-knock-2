@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT tag FROM tags WHERE joke_id = $1;",
+  "describe": {
+    "columns": [
+      {
+        "name": "tag",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "283700d90c670b1bbc72d2d574dadaf3278c780a6b48beeb32e0db8bb44155d8"
+}

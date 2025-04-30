@@ -15,6 +15,7 @@ pub struct JsonJoke {
     source: String,
 }
 
+#[derive(Clone)]
 pub struct Joke {
     pub id: String,
     pub whos_there: String,
