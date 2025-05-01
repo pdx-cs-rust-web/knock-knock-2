@@ -30,7 +30,7 @@ pub fn read_jokes<P: AsRef<Path>>(jokes_path: P) -> Result<Vec<JsonJoke>, KnockK
 }
 
 impl JsonJoke {
-    pub fn to_joke(&self) -> (Joke, impl Iterator<Item=&str>) {
+    pub fn to_joke(&self) -> (Joke, impl Iterator<Item = &str>) {
         let joke = Joke {
             id: self.id.clone(),
             whos_there: self.whos_there.clone(),

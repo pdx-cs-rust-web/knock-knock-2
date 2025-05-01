@@ -9,7 +9,13 @@ use templates::*;
 extern crate log;
 extern crate mime;
 
-use axum::{self, extract::{Query, State}, http, response, routing};
+use axum::{
+    self,
+    extract::{Query, State},
+    http,
+    response::{self, IntoResponse},
+    routing,
+};
 use clap::Parser;
 extern crate fastrand;
 use serde::Deserialize;
@@ -39,50 +45,57 @@ struct GetJokeParams {
     id: Option<String>,
 }
 
-async fn choose_joke(db: &SqlitePool, params: &GetJokeParams) -> Result<Joke, sqlx::Error>
-{
-    match params {
-        GetJokeParams { id: Some(id), .. } => {
-            sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", id)
-                .fetch_one(db)
-                .await
-        }
-        _ => {
-            sqlx::query_as!(Joke, "SELECT * FROM jokes ORDER BY RANDOM() LIMIT 1;")
-                .fetch_one(db)
-                .await
-        }
-    }
-}
-
 async fn get_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Query(params): Query<GetJokeParams>,
-)-> Result<response::Html<String>, http::StatusCode> {
+) -> Result<response::Response, http::StatusCode> {
     let mut app_state = app_state.write().await;
     let db = app_state.db.clone();
-    let joke_result = choose_joke(&db, &params).await;
-    match joke_result {
-        Ok(joke) => {
-            let mut tags = sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke.id)
-                .fetch(&db);
-            let mut tag_list: Vec<String> = Vec::new();
-            while let Some(tag) = tags.next().await {
-                let tag = tag.unwrap_or_else(|e| {
-                    log::error!("tag fetch failed: {}", e);
-                    panic!("tag fetch failed")
-                });
-                tag_list.push(tag);
+
+    // Specified.
+    if let GetJokeParams { id: Some(id), .. } = params {
+        let joke_result = sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", id)
+            .fetch_one(&db)
+            .await;
+        let result = match joke_result {
+            Ok(joke) => {
+                let mut tags =
+                    sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke.id)
+                        .fetch(&db);
+                let mut tag_list: Vec<String> = Vec::new();
+                while let Some(tag) = tags.next().await {
+                    let tag = tag.unwrap_or_else(|e| {
+                        log::error!("tag fetch failed: {}", e);
+                        panic!("tag fetch failed")
+                    });
+                    tag_list.push(tag);
+                }
+                let tag_string = tag_list.join(", ");
+
+                app_state.current_joke = joke.clone();
+                let joke = IndexTemplate::new(joke.clone(), tag_string);
+                Ok(response::Html(joke.to_string()).into_response())
             }
-            let tag_string = tag_list.join(", ");
-            
-            app_state.current_joke = joke.clone();
-            let joke = IndexTemplate::new(joke.clone(), tag_string);
-            Ok(response::Html(joke.to_string()))
+            Err(e) => {
+                log::warn!("joke fetch failed: {}", e);
+                Err(http::StatusCode::NOT_FOUND)
+            }
+        };
+        return result;
+    }
+
+    // Random.
+    let joke_result = sqlx::query_scalar!("SELECT id FROM jokes ORDER BY RANDOM() LIMIT 1;")
+        .fetch_one(&db)
+        .await;
+    match joke_result {
+        Ok(id) => {
+            let uri = format!("/?id={}", id);
+            Ok(response::Redirect::to(&uri).into_response())
         }
         Err(e) => {
-            log::warn!("joke fetch failed: {}", e);
-            Err(http::StatusCode::NOT_FOUND)
+            log::error!("joke selection failed: {}", e);
+            panic!("joke selection failed");
         }
     }
 }
@@ -126,8 +139,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     sqlx::migrate!().run(&db).await?;
     if let Some(path) = args.init_from {
         let jokes = read_jokes(path)?;
-'next_joke:
-        for jj in jokes {
+        'next_joke: for jj in jokes {
             let mut jtx = db.begin().await?;
             let (j, ts) = jj.to_joke();
             let joke_insert = sqlx::query!(
@@ -145,13 +157,10 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
                 continue;
             };
             for t in ts {
-                let tag_insert = sqlx::query!(
-                    "INSERT INTO tags (joke_id, tag) VALUES ($1, $2);",
-                    j.id,
-                    t,
-                )
-                .execute(&mut *jtx)
-                .await;
+                let tag_insert =
+                    sqlx::query!("INSERT INTO tags (joke_id, tag) VALUES ($1, $2);", j.id, t,)
+                        .execute(&mut *jtx)
+                        .await;
                 if let Err(e) = tag_insert {
                     eprintln!("error: tag insert: {} {}: {}", j.id, t, e);
                     jtx.rollback().await?;
