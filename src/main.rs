@@ -19,7 +19,7 @@ use axum::{
 use clap::Parser;
 extern crate fastrand;
 use serde::Deserialize;
-use sqlx::{SqlitePool, migrate::MigrateDatabase, sqlite};
+use sqlx::{Row, SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
 use tokio_stream::StreamExt;
 use tower_http::{services, trace};
@@ -43,6 +43,33 @@ struct AppState {
 #[derive(Deserialize)]
 struct GetJokeParams {
     id: Option<String>,
+    tags: Option<String>,
+}
+
+async fn tagged_joke(db: &SqlitePool, tags: &str) -> Result<Option<String>, sqlx::Error> {
+    let mut jtx = db.begin().await?;
+    sqlx::query("DROP TABLE IF EXISTS qtags;").execute(&mut *jtx).await?;
+    sqlx::query("CREATE TEMPORARY TABLE qtags (tag VARCHR(200));")
+        .execute(&mut *jtx)
+        .await?;
+    for tag in tags.split(',') {
+        sqlx::query("INSERT INTO qtags VALUES ($1);")
+            .bind(tag)
+            .execute(&mut *jtx)
+            .await?;
+    }
+    let joke_ids = sqlx::query("SELECT DISTINCT joke_id FROM tags JOIN qtags ON tags.tag = qtags.tag ORDER BY RANDOM() LIMIT 1;")
+        .fetch_all(&mut *jtx)
+        .await?;
+    let njoke_ids = joke_ids.len();
+    let result = if njoke_ids == 1 {
+        Some(joke_ids[0].get(0))
+    } else {
+        None
+    };
+    jtx.commit().await?;
+
+    Ok(result)
 }
 
 async fn get_joke(
@@ -82,6 +109,33 @@ async fn get_joke(
             }
         };
         return result;
+    }
+
+    if let GetJokeParams { tags: Some(tags), .. } = params {
+        log::info!("joke tags: {}", tags);
+
+        let mut tags_string = String::new();
+        for c in tags.chars() {
+            if c.is_alphabetic() || c == ',' {
+                let cl: String = c.to_lowercase().collect();
+                tags_string.push_str(&cl);
+            }
+        }
+
+        let joke_result = tagged_joke(&db, &tags_string).await;
+        match joke_result {
+            Ok(Some(id)) => {
+                let uri = format!("/?id={}", id);
+                return Ok(response::Redirect::to(&uri).into_response());
+            }
+            Ok(None) => {
+                log::info!("tagged joke selection was empty");
+            }
+            Err(e) => {
+                log::error!("tagged joke selection database error: {}", e);
+                panic!("tagged joke selection database error");
+            }
+        }
     }
 
     // Random.
