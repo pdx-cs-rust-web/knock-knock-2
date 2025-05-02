@@ -25,6 +25,7 @@ use tokio_stream::StreamExt;
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+use std::borrow::Cow;
 use std::sync::Arc;
 
 #[derive(Parser)]
@@ -154,13 +155,13 @@ async fn get_joke(
     }
 }
 
-fn get_db_uri(db_uri: Option<&str>) -> String {
+fn get_db_uri(db_uri: Option<&str>) -> Cow<str> {
     if let Some(db_uri) = db_uri {
-        db_uri.to_string()
-    } else if let Ok(db_uri) = std::env::var("KK2_DB_URI") {
-        db_uri
+        db_uri.into()
+    } else if let Ok(db_uri) = std::env::var("DATABASE_URL") {
+        db_uri.into()
     } else {
-        "sqlite://db/knock-knock.db".to_string()
+        "sqlite://db/knock-knock.db".into()
     }
 }
 
