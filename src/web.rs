@@ -36,30 +36,17 @@ pub async fn get_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Query(params): Query<GetJokeParams>,
 ) -> Result<response::Response, http::StatusCode> {
-    let mut app_state = app_state.write().await;
-    let db = app_state.db.clone();
+    let mut app_writer = app_state.write().await;
+    let db = app_writer.db.clone();
 
     // Specified.
     if let GetJokeParams { id: Some(id), .. } = params {
-        let joke_result = sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", id)
-            .fetch_one(&db)
-            .await;
+        let joke_result = joke::get(&db, &id).await;
         let result = match joke_result {
-            Ok(joke) => {
-                let mut tags =
-                    sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke.id)
-                        .fetch(&db);
-                let mut tag_list: Vec<String> = Vec::new();
-                while let Some(tag) = tags.next().await {
-                    let tag = tag.unwrap_or_else(|e| {
-                        log::error!("tag fetch failed: {}", e);
-                        panic!("tag fetch failed")
-                    });
-                    tag_list.push(tag);
-                }
-                let tag_string = tag_list.join(", ");
+            Ok((joke, tags)) => {
+                let tag_string = tags.join(", ");
 
-                app_state.current_joke = joke.clone();
+                app_writer.current_joke = joke.clone();
                 let joke = IndexTemplate::new(joke.clone(), tag_string);
                 Ok(response::Html(joke.to_string()).into_response())
             }

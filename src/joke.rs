@@ -1,3 +1,5 @@
+use crate::*;
+
 use std::collections::HashSet;
 use std::ops::Deref;
 use std::path::Path;
@@ -40,4 +42,17 @@ impl JsonJoke {
         let tags = self.tags.iter().map(String::deref);
         (joke, tags)
     }
+}
+
+pub async fn get(db: &SqlitePool, joke_id: &str) -> Result<(Joke, Vec<String>), sqlx::Error> {
+    let joke = sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", joke_id)
+        .fetch_one(db)
+        .await?;
+
+    type Tags = Vec<String>;
+    let tags: Tags = sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke_id)
+        .fetch_all(db)
+        .await?;
+
+    Ok((joke, tags))
 }
