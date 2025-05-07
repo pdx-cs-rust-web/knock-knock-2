@@ -24,7 +24,7 @@ features = ["full"]
 
 [dependencies.tower-http]
 version = "0.6.2"
-features = ["fs", "trace"]
+features = ["fs", "trace", "cors"]
 
 [dependencies.tracing-subscriber]
 version = "0.3.19"

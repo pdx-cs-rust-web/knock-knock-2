@@ -134,10 +134,20 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .make_span_with(trace::DefaultMakeSpan::new().level(tracing::Level::INFO))
         .on_response(trace::DefaultOnResponse::new().level(tracing::Level::INFO));
 
+    let apis = axum::Router::new()
+        .route("/joke/{joke_id}", routing::get(api::get_joke));
+
+    let cors = tower_http::cors::CorsLayer::new()
+        .allow_methods([http::Method::GET])
+        .allow_origin(tower_http::cors::Any);
+
+    async fn handler_404() -> axum::response::Response {
+        (http::StatusCode::NOT_FOUND, "404 Not Found").into_response()
+    }
+
     let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
     let app = axum::Router::new()
         .route("/", routing::get(web::get_joke))
-        .route("/api/v1/joke/{joke_id}", routing::get(api::get_joke))
         .route_service(
             "/knock.css",
             services::ServeFile::new_with_mime("assets/static/knock.css", &mime::TEXT_CSS_UTF_8),
@@ -146,6 +156,9 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
             "/favicon.ico",
             services::ServeFile::new_with_mime("assets/static/favicon.ico", &mime_favicon),
         )
+        .nest("/api/v1", apis)
+        .fallback(handler_404)
+        .layer(cors)
         .layer(trace_layer)
         .with_state(state);
 
