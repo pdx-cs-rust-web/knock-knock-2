@@ -8,7 +8,7 @@ use crate::KnockKnockError;
 
 use serde::Deserialize;
 
-#[derive(Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct JsonJoke {
     id: String,
     whos_there: String,
@@ -32,6 +32,17 @@ pub fn read_jokes<P: AsRef<Path>>(jokes_path: P) -> Result<Vec<JsonJoke>, KnockK
 }
 
 impl JsonJoke {
+    pub fn new(joke: Joke, tags: Vec<String>) -> Self {
+        let tags = tags.into_iter().collect();
+        Self {
+            id: joke.id,
+            whos_there: joke.whos_there,
+            answer_who: joke.answer_who,
+            tags,
+            source: joke.joke_source,
+        }
+    }
+
     pub fn to_joke(&self) -> (Joke, impl Iterator<Item = &str>) {
         let joke = Joke {
             id: self.id.clone(),
@@ -44,13 +55,18 @@ impl JsonJoke {
     }
 }
 
+impl axum::response::IntoResponse for &JsonJoke {
+    fn into_response(self) -> axum::response::Response {
+        (http::StatusCode::OK, axum::Json(&self)).into_response()
+    }
+}
+
 pub async fn get(db: &SqlitePool, joke_id: &str) -> Result<(Joke, Vec<String>), sqlx::Error> {
     let joke = sqlx::query_as!(Joke, "SELECT * FROM jokes WHERE id = $1;", joke_id)
         .fetch_one(db)
         .await?;
 
-    type Tags = Vec<String>;
-    let tags: Tags = sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke_id)
+    let tags: Vec<String> = sqlx::query_scalar!("SELECT tag FROM tags WHERE joke_id = $1;", joke_id)
         .fetch_all(db)
         .await?;
 

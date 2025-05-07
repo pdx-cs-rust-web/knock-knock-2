@@ -2,7 +2,7 @@ mod error;
 mod joke;
 mod templates;
 mod web;
-//mod api;
+mod api;
 
 use error::*;
 use joke::*;
@@ -13,15 +13,14 @@ extern crate mime;
 
 use axum::{
     self,
-//    extract::{Path, Query, State},
-    extract::{Query, State},
+    extract::{Path, Query, State},
     http,
     response::{self, IntoResponse},
     routing,
 };
 use clap::Parser;
 extern crate fastrand;
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use sqlx::{Row, SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
@@ -138,7 +137,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
     let app = axum::Router::new()
         .route("/", routing::get(web::get_joke))
-//        .route("/api/v1/joke/:joke_id", routing::get(api::get_joke))
+        .route("/api/v1/joke/{joke_id}", routing::get(api::get_joke))
         .route_service(
             "/knock.css",
             services::ServeFile::new_with_mime("assets/static/knock.css", &mime::TEXT_CSS_UTF_8),
