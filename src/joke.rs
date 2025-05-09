@@ -72,3 +72,31 @@ pub async fn get(db: &SqlitePool, joke_id: &str) -> Result<(Joke, Vec<String>), 
 
     Ok((joke, tags))
 }
+
+pub async fn get_tagged<'a, I>(db: &SqlitePool, tags: I) -> Result<Option<String>, sqlx::Error>
+    where I: Iterator<Item=&'a str>
+{
+    let mut jtx = db.begin().await?;
+    sqlx::query("DROP TABLE IF EXISTS qtags;").execute(&mut *jtx).await?;
+    sqlx::query("CREATE TEMPORARY TABLE qtags (tag VARCHR(200));")
+        .execute(&mut *jtx)
+        .await?;
+    for tag in tags {
+        sqlx::query("INSERT INTO qtags VALUES ($1);")
+            .bind(tag)
+            .execute(&mut *jtx)
+            .await?;
+    }
+    let joke_ids = sqlx::query("SELECT DISTINCT joke_id FROM tags JOIN qtags ON tags.tag = qtags.tag ORDER BY RANDOM() LIMIT 1;")
+        .fetch_all(&mut *jtx)
+        .await?;
+    let njoke_ids = joke_ids.len();
+    let result = if njoke_ids == 1 {
+        Some(joke_ids[0].get(0))
+    } else {
+        None
+    };
+    jtx.commit().await?;
+
+    Ok(result)
+}

@@ -6,32 +6,6 @@ pub struct GetJokeParams {
     tags: Option<String>,
 }
 
-async fn tagged_joke(db: &SqlitePool, tags: &str) -> Result<Option<String>, sqlx::Error> {
-    let mut jtx = db.begin().await?;
-    sqlx::query("DROP TABLE IF EXISTS qtags;").execute(&mut *jtx).await?;
-    sqlx::query("CREATE TEMPORARY TABLE qtags (tag VARCHR(200));")
-        .execute(&mut *jtx)
-        .await?;
-    for tag in tags.split(',') {
-        sqlx::query("INSERT INTO qtags VALUES ($1);")
-            .bind(tag)
-            .execute(&mut *jtx)
-            .await?;
-    }
-    let joke_ids = sqlx::query("SELECT DISTINCT joke_id FROM tags JOIN qtags ON tags.tag = qtags.tag ORDER BY RANDOM() LIMIT 1;")
-        .fetch_all(&mut *jtx)
-        .await?;
-    let njoke_ids = joke_ids.len();
-    let result = if njoke_ids == 1 {
-        Some(joke_ids[0].get(0))
-    } else {
-        None
-    };
-    jtx.commit().await?;
-
-    Ok(result)
-}
-
 pub async fn get_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Query(params): Query<GetJokeParams>,
@@ -69,7 +43,7 @@ pub async fn get_joke(
             }
         }
 
-        let joke_result = tagged_joke(&db, &tags_string).await;
+        let joke_result = joke::get_tagged(&db, tags_string.split(',')).await;
         match joke_result {
             Ok(Some(id)) => {
                 let uri = format!("/?id={}", id);
