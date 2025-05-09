@@ -136,7 +136,8 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
 
     let apis = axum::Router::new()
         .route("/joke/{joke_id}", routing::get(api::get_joke))
-        .route("/by-tags", routing::get(api::get_tagged_joke));
+        .route("/tagged-joke", routing::get(api::get_tagged_joke))
+        .route("/random-joke", routing::get(api::get_random_joke));
 
     let cors = tower_http::cors::CorsLayer::new()
         .allow_methods([http::Method::GET])

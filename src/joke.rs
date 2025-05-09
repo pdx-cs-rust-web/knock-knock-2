@@ -100,3 +100,9 @@ pub async fn get_tagged<'a, I>(db: &SqlitePool, tags: I) -> Result<Option<String
 
     Ok(result)
 }
+
+pub async fn get_random(db: &SqlitePool) -> Result<String, sqlx::Error> {
+    sqlx::query_scalar!("SELECT id FROM jokes ORDER BY RANDOM() LIMIT 1;")
+        .fetch_one(db)
+        .await
+}

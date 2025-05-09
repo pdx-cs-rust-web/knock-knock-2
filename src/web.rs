@@ -59,10 +59,7 @@ pub async fn get_joke(
         }
     }
 
-    // Random.
-    let joke_result = sqlx::query_scalar!("SELECT id FROM jokes ORDER BY RANDOM() LIMIT 1;")
-        .fetch_one(&db)
-        .await;
+    let joke_result = joke::get_random(&db).await;
     match joke_result {
         Ok(id) => {
             let uri = format!("/?id={}", id);

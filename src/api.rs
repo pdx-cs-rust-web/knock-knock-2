@@ -40,3 +40,18 @@ pub async fn get_tagged_joke(
         }
     }
 }
+
+pub async fn get_random_joke(
+    State(app_state): State<Arc<RwLock<AppState>>>,
+) -> Result<response::Response, http::StatusCode> {
+    let app_reader = app_state.read().await;
+    let db = &app_reader.db;
+    let joke_result = joke::get_random(db).await;
+    match joke_result {
+        Ok(joke_id) => get_joke_by_id(db, &joke_id).await,
+        Err(e) => {
+            log::warn!("get random joke failed: {}", e);
+            Err(http::StatusCode::NOT_FOUND)
+        }
+    }
+}
