@@ -11,7 +11,7 @@ use crate::*;
         schemas(JsonJoke)
     ),
     tags(
-        (name = "knock-knock", description = "Knock-Knock Joke API")
+        (name = "kk2", description = "Knock-Knock Joke API")
     )
 )]
 pub struct ApiDoc;
@@ -31,7 +31,8 @@ async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Resp
     get,
     path = "/api/v1/joke/{joke_id}",
     responses(
-        (status = 200, description = "List jokes", body = [JsonJoke])
+        (status = 200, description = "Get a joke by id", body = [JsonJoke]),
+        (status = 404, description = "No matching joke"),
     )
 )]
 pub async fn get_joke(
@@ -47,7 +48,8 @@ pub async fn get_joke(
     get,
     path = "/api/v1/tagged-joke",
     responses(
-        (status = 200, description = "Get a joke by tags", body = [JsonJoke])
+        (status = 200, description = "Get a joke by tags", body = [JsonJoke]),
+        (status = 404, description = "No matching jokes"),
     )
 )]
 pub async fn get_tagged_joke(
@@ -75,7 +77,8 @@ pub async fn get_tagged_joke(
     get,
     path = "/api/v1/random-joke",
     responses(
-        (status = 200, description = "Get a random joke", body = [JsonJoke])
+        (status = 200, description = "Get a random joke", body = [JsonJoke]),
+        (status = 404, description = "No joke"),
     )
 )]
 pub async fn get_random_joke(
