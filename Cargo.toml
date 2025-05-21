@@ -47,6 +47,10 @@ git = "https://github.com/juhaku/utoipa.git"
 rev = "cecda0531bf7d90800af66b186055932ee730526"
 features = ["axum_extras"]
 
+[dependencies.utoipa-axum]
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+
 [dependencies.utoipa-rapidoc]
 #version = "6.0.0"
 git = "https://github.com/juhaku/utoipa.git"

@@ -26,6 +26,7 @@ use tokio::{net, sync::RwLock};
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::{OpenApi, ToSchema};
+use utoipa_axum::{router::OpenApiRouter, routes};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
 use utoipa_swagger_ui::SwaggerUi;
@@ -138,11 +139,6 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .make_span_with(trace::DefaultMakeSpan::new().level(tracing::Level::INFO))
         .on_response(trace::DefaultOnResponse::new().level(tracing::Level::INFO));
 
-    let apis = axum::Router::new()
-        .route("/joke/{joke_id}", routing::get(api::get_joke))
-        .route("/tagged-joke", routing::get(api::get_tagged_joke))
-        .route("/random-joke", routing::get(api::get_random_joke));
-
     let cors = tower_http::cors::CorsLayer::new()
         .allow_methods([http::Method::GET])
         .allow_origin(tower_http::cors::Any);
@@ -153,10 +149,16 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
 
     let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
 
-     let swagger_ui = SwaggerUi::new("/swagger-ui")
-        .url("/api-docs/openapi.json", api::ApiDoc::openapi());
-    let redoc_ui = Redoc::with_url("/redoc", api::ApiDoc::openapi());
+    let (api_router, api) = OpenApiRouter::with_openapi(api::ApiDoc::openapi())
+        .nest("/api/v1", api::router())
+        .split_for_parts();
+
+    let swagger_ui = SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", api.clone());
+    let redoc_ui = Redoc::with_url("/redoc", api);
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
+
+
 
     let app = axum::Router::new()
         .route("/", routing::get(web::get_joke))
@@ -171,7 +173,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .merge(swagger_ui)
         .merge(redoc_ui)
         .merge(rapidoc_ui)
-        .nest("/api/v1", apis)
+        .merge(api_router)
         .fallback(handler_404)
         .layer(cors)
         .layer(trace_layer)

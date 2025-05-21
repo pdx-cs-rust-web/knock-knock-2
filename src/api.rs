@@ -2,19 +2,18 @@ use crate::*;
 
 #[derive(OpenApi)]
 #[openapi(
-    paths(
-        get_joke,
-        get_tagged_joke,
-        get_random_joke,
-    ),
-    components(
-        schemas(JsonJoke)
-    ),
     tags(
         (name = "kk2", description = "Knock-Knock Joke API")
     )
 )]
 pub struct ApiDoc;
+
+pub fn router() -> OpenApiRouter<Arc<RwLock<AppState>>> {
+    OpenApiRouter::new()
+        .routes(routes!(get_joke))
+        .routes(routes!(get_tagged_joke))
+        .routes(routes!(get_random_joke))
+}
 
 async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Response, http::StatusCode> {
     let joke_result = joke::get(db, joke_id).await;
@@ -29,7 +28,7 @@ async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Resp
 
 #[utoipa::path(
     get,
-    path = "/api/v1/joke/{joke_id}",
+    path = "/joke/{joke_id}",
     responses(
         (status = 200, description = "Get a joke by id", body = [JsonJoke]),
         (status = 404, description = "No matching joke"),
@@ -46,7 +45,7 @@ pub async fn get_joke(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/tagged-joke",
+    path = "/tagged-joke",
     responses(
         (status = 200, description = "Get a joke by tags", body = [JsonJoke]),
         (status = 404, description = "No matching jokes"),
@@ -75,7 +74,7 @@ pub async fn get_tagged_joke(
 
 #[utoipa::path(
     get,
-    path = "/api/v1/random-joke",
+    path = "/random-joke",
     responses(
         (status = 200, description = "Get a random joke", body = [JsonJoke]),
         (status = 404, description = "No joke"),
