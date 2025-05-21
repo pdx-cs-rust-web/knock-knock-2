@@ -28,7 +28,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::{OpenApi, ToSchema};
 use utoipa_rapidoc::RapiDoc;
 use utoipa_redoc::{Redoc, Servable};
-//use utoipa_swagger_ui::SwaggerUi;
+use utoipa_swagger_ui::SwaggerUi;
 
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -153,8 +153,8 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
 
     let mime_favicon = "image/vnd.microsoft.icon".parse().unwrap();
 
-    // let swagger_ui = SwaggerUi::new("/swagger-ui")
-    //    .url("/api-docs/openapi.json", api::ApiDoc::openapi());
+     let swagger_ui = SwaggerUi::new("/swagger-ui")
+        .url("/api-docs/openapi.json", api::ApiDoc::openapi());
     let redoc_ui = Redoc::with_url("/redoc", api::ApiDoc::openapi());
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
 
@@ -168,7 +168,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
             "/favicon.ico",
             services::ServeFile::new_with_mime("assets/static/favicon.ico", &mime_favicon),
         )
-        // .merge(swagger_ui)
+        .merge(swagger_ui)
         .merge(redoc_ui)
         .merge(rapidoc_ui)
         .nest("/api/v1", apis)

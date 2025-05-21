@@ -6,16 +6,16 @@ edition = "2024"
 [dependencies]
 askama = "0.14.0"
 axum = "0.8.4"
-clap = { version = "4.5.38", features = ["derive"] }
 fastrand = "2.3.0"
 log = "0.4.27"
 mime = "0.3.17"
 serde_json = "1.0.140"
 thiserror = "2.0.12"
 tracing = "0.1.41"
-utoipa = { version = "5.3.1", features = ["axum_extras"] }
-utoipa-rapidoc = { version = "6.0.0", features = ["axum"] }
-utoipa-redoc = { version = "6.0.0", features = ["axum"] }
+
+[dependencies.clap]
+version = "4.5.38"
+features = ["derive"]
 
 [dependencies.serde]
 version = "1.0.219"
@@ -41,7 +41,25 @@ features = ["runtime-tokio", "sqlite", "derive", "macros", "migrate", "chrono", 
 version = "0.1.17"
 features = ["full"]
 
-#[dependencies.utoipa-swagger-ui]
-#git = "https://github.com/juhaku/utoipa.git"
-#rev = "cecda0531bf7d90800af66b186055932ee730526"
-#features = ["axum"]
+[dependencies.utoipa]
+#version = "5.3.1"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum_extras"]
+
+[dependencies.utoipa-rapidoc]
+#version = "6.0.0"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
+
+[dependencies.utoipa-redoc]
+#version = "6.0.0"
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
+
+[dependencies.utoipa-swagger-ui]
+git = "https://github.com/juhaku/utoipa.git"
+rev = "cecda0531bf7d90800af66b186055932ee730526"
+features = ["axum"]
