@@ -1,5 +1,21 @@
 use crate::*;
 
+#[derive(OpenApi)]
+#[openapi(
+    paths(
+        get_joke,
+        get_tagged_joke,
+        get_random_joke,
+    ),
+    components(
+        schemas(JsonJoke)
+    ),
+    tags(
+        (name = "knock-knock", description = "Knock-Knock Joke API")
+    )
+)]
+pub struct ApiDoc;
+
 async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Response, http::StatusCode> {
     let joke_result = joke::get(db, joke_id).await;
     match joke_result {
@@ -11,6 +27,13 @@ async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Resp
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/joke/{joke_id}",
+    responses(
+        (status = 200, description = "List jokes", body = [JsonJoke])
+    )
+)]
 pub async fn get_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Path(joke_id): Path<String>,
@@ -20,6 +43,13 @@ pub async fn get_joke(
     get_joke_by_id(db, &joke_id).await
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/tagged-joke",
+    responses(
+        (status = 200, description = "Get a joke by tags", body = [JsonJoke])
+    )
+)]
 pub async fn get_tagged_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
     Json(tags): Json<Vec<String>>,
@@ -41,6 +71,13 @@ pub async fn get_tagged_joke(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/v1/random-joke",
+    responses(
+        (status = 200, description = "Get a random joke", body = [JsonJoke])
+    )
+)]
 pub async fn get_random_joke(
     State(app_state): State<Arc<RwLock<AppState>>>,
 ) -> Result<response::Response, http::StatusCode> {

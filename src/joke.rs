@@ -8,7 +8,7 @@ use crate::KnockKnockError;
 
 use serde::Deserialize;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct JsonJoke {
     id: String,
     whos_there: String,
