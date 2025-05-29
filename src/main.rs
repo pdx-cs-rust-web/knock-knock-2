@@ -40,6 +40,8 @@ struct Args {
     init_from: Option<std::path::PathBuf>,
     #[arg(short, long, name = "db-uri")]
     db_uri: Option<String>,
+    #[arg(short, long, default_value = "3000")]
+    port: u16,
 }
 
 struct AppState {
@@ -179,7 +181,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .layer(trace_layer)
         .with_state(state);
 
-    let listener = net::TcpListener::bind("127.0.0.1:3000").await?;
+    let listener = net::TcpListener::bind(&format!("127.0.0.1:{}", args.port)).await?;
     axum::serve(listener, app).await?;
     Ok(())
 }
