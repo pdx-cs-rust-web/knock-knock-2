@@ -16,14 +16,16 @@ ARG APP_NAME=kk2
 ################################################################################
 # Create a stage for building the application.
 
-FROM rust:${RUST_VERSION}-alpine AS build
+#FROM rust:${RUST_VERSION}-alpine AS build
+FROM rust:${RUST_VERSION} AS build
 ARG APP_NAME
 WORKDIR /app
 
 ENV DATABASE_URL=sqlite:db/knock-knock.db
 
 # Install host build dependencies.
-RUN apk add --no-cache clang lld musl-dev git curl
+RUN apt-get install git curl
+#RUN apk add --no-cache clang lld musl-dev git curl
 #RUN cargo install sqlx-cli --no-default-features --features=sqlite,rustls
 
 # Build the application.
@@ -60,7 +62,8 @@ cp ./target/release/$APP_NAME /bin/server
 # By specifying the "3.18" tag, it will use version 3.18 of alpine. If
 # reproducability is important, consider using a digest
 # (e.g., alpine@sha256:664888ac9cfd28068e062c991ebcff4b4c7307dc8dd4df9e728bedde5c449d91).
-FROM alpine:latest AS final
+#FROM alpine:latest AS final
+FROM rust:${RUST_VERSION} AS final
 
 # Create a non-privileged user that the app will run under.
 # See https://docs.docker.com/go/dockerfile-user-best-practices/

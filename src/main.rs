@@ -3,6 +3,7 @@ mod joke;
 mod templates;
 mod web;
 mod api;
+mod authjwt;
 
 use error::*;
 use joke::*;
@@ -13,13 +14,20 @@ extern crate mime;
 
 use axum::{
     self,
+    RequestPartsExt,
     extract::{Path, Query, State, Json},
-    http,
+    http::{self, StatusCode},
     response::{self, IntoResponse},
     routing,
 };
+use axum_extra::{
+    headers::{authorization::Bearer, Authorization},
+    TypedHeader,
+};
+use chrono::{prelude::*, TimeDelta};
 use clap::Parser;
 extern crate fastrand;
+use jsonwebtoken::{EncodingKey, DecodingKey};
 use serde::{Serialize, Deserialize};
 use sqlx::{Row, SqlitePool, migrate::MigrateDatabase, sqlite};
 use tokio::{net, sync::RwLock};
@@ -46,7 +54,28 @@ struct Args {
 
 struct AppState {
     db: SqlitePool,
+    jwt_keys: authjwt::JwtKeys,
+    reg_key: String,
     current_joke: Joke,
+}
+
+type SharedAppState = Arc<RwLock<AppState>>;
+
+impl AppState {
+    pub fn new(db: SqlitePool, jwt_keys: authjwt::JwtKeys, reg_key: String) -> Self {
+        let current_joke = Joke {
+            id: "mojo".to_string(),
+            whos_there: "Mojo".to_string(),
+            answer_who: "Mo' jokes, please.".to_string(),
+            joke_source: "Unknown".to_string(),
+        };
+        Self {
+            db,
+            jwt_keys,
+            reg_key,
+            current_joke,
+        }
+    }
 }
 
 fn get_db_uri(db_uri: Option<&str>) -> Cow<str> {
@@ -120,13 +149,18 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         }
         return Ok(());
     }
-    let current_joke = Joke {
-        id: "mojo".to_string(),
-        whos_there: "Mojo".to_string(),
-        answer_who: "Mo' jokes, please.".to_string(),
-        joke_source: "Unknown".to_string(),
-    };
-    let app_state = AppState { db, current_joke };
+
+    let jwt_keys = authjwt::make_jwt_keys().await.unwrap_or_else(|_| {
+        tracing::error!("jwt keys");
+        std::process::exit(1);
+    });
+
+    let reg_key = authjwt::read_secret("REG_PASSWORD").await.unwrap_or_else(|_| {
+        tracing::error!("reg password");
+        std::process::exit(1);
+    });
+
+    let app_state = AppState::new(db, jwt_keys, reg_key);
     let state = Arc::new(RwLock::new(app_state));
 
     tracing_subscriber::registry()

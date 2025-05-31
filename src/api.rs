@@ -13,6 +13,7 @@ pub fn router() -> OpenApiRouter<Arc<RwLock<AppState>>> {
         .routes(routes!(get_joke))
         .routes(routes!(get_tagged_joke))
         .routes(routes!(get_random_joke))
+        .routes(routes!(register))
 }
 
 async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Response, http::StatusCode> {
@@ -92,5 +93,28 @@ pub async fn get_random_joke(
             log::warn!("get random joke failed: {}", e);
             Err(http::StatusCode::NOT_FOUND)
         }
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/register",
+    request_body(
+        content = inline(authjwt::Registration),
+        description = "Get an API key",
+    ),
+    responses(
+        (status = 200, description = "JSON Web Token", body = authjwt::AuthBody),
+        (status = 401, description = "Registration failed", body = authjwt::AuthError),
+    )
+)]
+pub async fn register(
+    State(appstate): State<SharedAppState>,
+    Json(registration): Json<authjwt::Registration>,
+) -> axum::response::Response {
+    let appstate = appstate.read().await;
+    match authjwt::make_jwt_token(&appstate, &registration) {
+        Err(e) => e.into_response(),
+        Ok(token) => (StatusCode::OK, token).into_response(),
     }
 }
