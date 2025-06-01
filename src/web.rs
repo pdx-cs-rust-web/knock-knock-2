@@ -66,8 +66,11 @@ pub async fn get_joke(
             Ok(response::Redirect::to(&uri).into_response())
         }
         Err(e) => {
-            log::error!("joke selection failed: {}", e);
-            panic!("joke selection failed");
+            log::error!("random joke selection failed: {}", e);
+            let tag_string = "empty".to_string();
+            let joke = app_writer.current_joke.clone();
+            let joke = IndexTemplate::new(joke, tag_string);
+            Ok(response::Html(joke.to_string()).into_response())
         }
     }
 }
