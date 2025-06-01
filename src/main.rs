@@ -178,7 +178,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .on_response(trace::DefaultOnResponse::new().level(tracing::Level::INFO));
 
     let cors = tower_http::cors::CorsLayer::new()
-        .allow_methods([http::Method::GET])
+        .allow_methods([http::Method::GET, http::Method::POST])
         .allow_origin(tower_http::cors::Any);
 
     async fn handler_404() -> axum::response::Response {
@@ -195,8 +195,6 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .url("/api-docs/openapi.json", api.clone());
     let redoc_ui = Redoc::with_url("/redoc", api);
     let rapidoc_ui = RapiDoc::new("/api-docs/openapi.json").path("/rapidoc");
-
-
 
     let app = axum::Router::new()
         .route("/", routing::get(web::get_joke))
@@ -217,7 +215,9 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .layer(trace_layer)
         .with_state(state);
 
-    let listener = net::TcpListener::bind(&format!("127.0.0.1:{}", args.port)).await?;
+    let endpoint = format!("127.0.0.1:{}", args.port);
+    let listener = net::TcpListener::bind(&endpoint).await?;
+    log::info!("started: listening on {}", endpoint);
     axum::serve(listener, app).await?;
     Ok(())
 }
