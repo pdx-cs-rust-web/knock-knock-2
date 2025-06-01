@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO jokes\n        (id, whos_there, answer_who, joke_source)\n        VALUES ($1, $2, $3, $4);",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "b69c21b84da5315f027f20ab219bebd08d932632ceff1c8bc64bf1337ec98d76"
+}

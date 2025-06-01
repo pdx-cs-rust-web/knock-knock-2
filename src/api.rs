@@ -14,6 +14,7 @@ pub fn router() -> OpenApiRouter<Arc<RwLock<AppState>>> {
         .routes(routes!(get_tagged_joke))
         .routes(routes!(get_random_joke))
         .routes(routes!(register))
+        .routes(routes!(add_joke))
 }
 
 async fn get_joke_by_id(db: &SqlitePool, joke_id: &str) -> Result<response::Response, http::StatusCode> {
@@ -116,5 +117,30 @@ pub async fn register(
     match authjwt::make_jwt_token(&appstate, &registration) {
         Err(e) => e.into_response(),
         Ok(token) => (StatusCode::OK, token).into_response(),
+    }
+}
+
+#[utoipa::path(
+    post,
+    path = "/add-joke",
+    request_body(
+        content = inline(JsonJoke),
+        description = "Joke to add"
+    ),
+    responses(
+        (status = 201, description = "Added joke", body = ()),
+        (status = 400, description = "Bad request", body = String),
+        (status = 401, description = "Auth Error", body = authjwt::AuthError),
+    )
+)]
+pub async fn add_joke(
+    _claims: authjwt::Claims,
+    State(appstate): State<SharedAppState>,
+    Json(joke): Json<JsonJoke>,
+) -> axum::response::Response {
+    let appstate = appstate.read().await;
+    match joke::add(&appstate.db, joke).await {
+        Err(e) => (StatusCode::BAD_REQUEST, e.to_string()).into_response(),
+        Ok(()) => StatusCode::CREATED.into_response(),
     }
 }
