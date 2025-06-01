@@ -155,10 +155,12 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         std::process::exit(1);
     });
 
-    let reg_key = authjwt::read_secret("REG_PASSWORD").await.unwrap_or_else(|_| {
-        tracing::error!("reg password");
-        std::process::exit(1);
-    });
+    let reg_key = authjwt::read_secret("REG_PASSWORD", "secrets/reg_password.txt")
+        .await
+        .unwrap_or_else(|_| {
+            tracing::error!("reg password");
+            std::process::exit(1);
+        });
 
     let app_state = AppState::new(db, jwt_keys, reg_key);
     let state = Arc::new(RwLock::new(app_state));
