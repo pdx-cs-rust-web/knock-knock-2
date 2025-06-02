@@ -1,14 +1,8 @@
 # syntax=docker/dockerfile:1
 
-# This Dockerfile's original author is unknown: maybe to
-# Casey Bailey or Bastian Gruber. Bart Massey adapted it for
-# this project.
-
-# Comments are provided throughout this file to help you get started.
-# If you need more help, visit the Dockerfile reference guide at
-# https://docs.docker.com/go/dockerfile-reference/
-
-# Want to help us make this template better? Share your feedback here: https://forms.gle/ybq9Krt8jtBL3iCk7
+# This Dockerfile's original author is unknown: maybe Casey
+# Bailey or Bastian Gruber. Bart Massey adapted it for this
+# project.
 
 ARG RUST_VERSION=1.87
 ARG APP_NAME=kk2
@@ -25,8 +19,6 @@ ENV DATABASE_URL=sqlite:db/knock-knock.db
 
 # Install host build dependencies.
 RUN apt-get install git curl
-#RUN apk add --no-cache clang lld musl-dev git curl
-#RUN cargo install sqlx-cli --no-default-features --features=sqlite,rustls
 
 # Build the application.
 # Leverage a cache mount to /usr/local/cargo/registry/
@@ -49,8 +41,6 @@ RUN --mount=type=bind,source=src,target=src \
     --mount=type=cache,target=/usr/local/cargo/registry/ \
 cargo build --release && \
 cp ./target/release/$APP_NAME /bin/server
-
-# cargo sqlx prepare && \
 
 ################################################################################
 # Create a new stage for running the application that contains the minimal
@@ -80,12 +70,15 @@ USER appuser
 
 # Copy the executable from the "build" stage.
 COPY --from=build /bin/server /bin/
+
 COPY --chown=appuser:appuser ./assets ./assets
 COPY --chown=appuser:appuser ./migrations ./migrations
 COPY --chown=appuser:appuser ./db ./db
+COPY --chown=appuser:appuser ./secrets ./secrets
 
-# Expose the port that the application listens on.
+# Remember to expose the port that the application listens on.
+# This is the port it is supposed to listen on.
 EXPOSE 3000
 
 # What the container should run when it is started.
-CMD ["/bin/server"]
+CMD ["/bin/server", "-i", "0.0.0.0"]

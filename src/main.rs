@@ -44,10 +44,12 @@ use std::sync::Arc;
 
 #[derive(Parser)]
 struct Args {
-    #[arg(short, long, name = "init-from")]
+    #[arg(long, name = "init-from")]
     init_from: Option<std::path::PathBuf>,
     #[arg(short, long, name = "db-uri")]
     db_uri: Option<String>,
+    #[arg(short, long, default_value = "127.0.0.1")]
+    ip: String,
     #[arg(short, long, default_value = "3000")]
     port: u16,
 }
@@ -215,7 +217,7 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
         .layer(trace_layer)
         .with_state(state);
 
-    let endpoint = format!("127.0.0.1:{}", args.port);
+    let endpoint = format!("{}:{}", args.ip, args.port);
     let listener = net::TcpListener::bind(&endpoint).await?;
     log::info!("started: listening on {}", endpoint);
     axum::serve(listener, app).await?;
