@@ -30,7 +30,7 @@ extern crate fastrand;
 use jsonwebtoken::{EncodingKey, DecodingKey};
 use serde::{Serialize, Deserialize};
 use sqlx::{Row, SqlitePool, migrate::MigrateDatabase, sqlite};
-use tokio::{net, sync::RwLock};
+use tokio::{net, signal, sync::RwLock, time::Duration};
 use tower_http::{services, trace};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use utoipa::{OpenApi, ToSchema};
@@ -103,6 +103,41 @@ fn extract_db_dir(db_uri: &str) -> Result<&str, KnockKnockError> {
     } else {
         Err(KnockKnockError::InvalidDbUri(db_uri.to_string()))
     }
+}
+
+// Thanks to Gemini for this code.
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        signal::ctrl_c()
+            .await
+            .expect("Failed to install Ctrl+C handler");
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        signal::unix::signal(signal::unix::SignalKind::terminate())
+            .expect("Failed to create SIGTERM handler")
+            .recv()
+            .await;
+    };
+
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {
+            tracing::info!("Received Ctrl+C (SIGINT) signal.");
+        },
+        _ = terminate => {
+            tracing::info!("Received SIGTERM signal.");
+        },
+    }
+
+    tracing::info!("Initiating graceful shutdown...");
+
+    // Example: Give some time for in-flight requests to complete
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    tracing::info!("Cleanup complete.");
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
@@ -220,9 +255,12 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let endpoint = format!("{}:{}", args.ip, args.port);
     let listener = net::TcpListener::bind(&endpoint).await?;
     log::info!("started: listening on {}", endpoint);
-    axum::serve(listener, app).await?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await?;
     Ok(())
 }
+
 
 #[tokio::main]
 async fn main() {
