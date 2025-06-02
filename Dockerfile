@@ -12,7 +12,7 @@ ARG RUST_VERSION=1.87
 FROM rust:${RUST_VERSION} AS build
 WORKDIR /build
 
-ENV DATABASE_URL=sqlite:db/knock-knock.db
+ENV DATABASE_URL=sqlite://db/knock-knock.db
 
 # Install host build dependencies.
 RUN apt-get install git curl

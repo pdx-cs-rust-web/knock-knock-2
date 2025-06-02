@@ -23,30 +23,46 @@ newly-created database.
 
 For working on the code, you will want to
 
-    cargo install sqlx-cli`
+    cargo install sqlx-cli
 
 * `sqlx` migrations are turned on, with reverse
   sequential migrations. Add a migration called `<name>` with
 
         sqlx migrate add -r -s <name>
 
-  and then edit the migration files.
+  and then edit the migration files. You may want to run
+  
+        sqlx migrate run
 
 * `sqlx` compile-time checking of queries against
   the database schemas is turned on. If you modify the
   database schemas or the queries in the source code, please
   run
 
-        sqlx prepare
+        DATABASE_URL=sqlite://db/knock-knock.db cargo sqlx prepare
 
-  to update things so that users can compile before the
-  database is built and migrated.
+  to update things.
 
-Because of the above you may need to
+Because of the above you need to
 
     git add .sqlx migrations
 
 before committing to ensure things are up to date.
+
+## Docker
+
+Install Docker CE and build an image with
+
+      docker build -t kk2 .
+
+You can then run the image with
+
+      docker run -p 3000:3000 kk2
+
+Note that the image is built with the database from the
+build directory copied in: it will not persist across image
+builds. A named Docker volume could be used for persisting
+the database.
 
 ## License
 
