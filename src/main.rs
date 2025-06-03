@@ -141,6 +141,14 @@ async fn shutdown_signal() {
 }
 
 async fn serve() -> Result<(), Box<dyn std::error::Error>> {
+    let tsf = tracing_subscriber::fmt::layer()
+        .with_writer(std::io::stderr);
+    let tse = tracing_subscriber::EnvFilter::try_from_default_env().
+        unwrap_or_else(|_| "kk2=debug".into());
+    tracing_subscriber::registry().with(tsf).with(tse).init();
+
+    log::info!("Starting...");
+
     let args = Args::parse();
 
     let db_uri = get_db_uri(args.db_uri.as_deref());
@@ -202,13 +210,6 @@ async fn serve() -> Result<(), Box<dyn std::error::Error>> {
     let app_state = AppState::new(db, jwt_keys, reg_key);
     let state = Arc::new(RwLock::new(app_state));
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "kk2=debug,info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
     // https://carlosmv.hashnode.dev/adding-logging-and-tracing-to-an-axum-app-rust
     let trace_layer = trace::TraceLayer::new_for_http()
         .make_span_with(trace::DefaultMakeSpan::new().level(tracing::Level::INFO))
