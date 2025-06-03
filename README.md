@@ -51,11 +51,15 @@ before committing to ensure things are up to date.
 
 ## Docker
 
-Install Docker CE and build an image with
+
+Install Docker CE.
+
+Before building an image, do a release build. Much of the
+image content will come from here. Then build an image with
 
       docker build -t kk2 .
 
-You can then run the image with
+You can run the image with
 
       docker run -p 3000:3000 kk2
 
